@@ -1,0 +1,192 @@
+group 'test'
+version '1.0-SNAPSHOT'
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url 'http://maven.oschina.net/content/groups/public/' }
+        maven { url "https://repo.spring.io/release" }
+    }
+
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.3.3.RELEASE")
+    }
+}
+
+ext{
+    userName = 'admin'
+    password = 'admin123'
+    releaseVersion = "-SNAPSHOT"
+    if (System.properties['profile'] == 'product') {
+        releaseVersion = ''
+    }
+    println("releaseVersion:"+releaseVersion)
+}
+
+allprojects{
+    apply plugin: 'java'
+    apply plugin: 'idea'
+    apply plugin: 'spring-boot'
+
+    repositories {
+        mavenLocal()
+        maven { url 'http://maven.oschina.net/content/groups/public/' }
+        mavenCentral()
+        maven { url "https://repo.spring.io/release" }
+    }
+    configurations.all {
+        exclude group: 'commons-logging', module: 'commons-logging'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'org.springframework', module: 'spring'
+        resolutionStrategy.cacheChangingModulesFor 1, 'minutes'
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+        options.debug = "on"
+        options.compilerArgs << "-XDignore.symbol.file"
+        options.fork = true
+        options.forkOptions.executable = 'javac'
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
+    }
+
+    tasks.withType(Javadoc) {
+        options.encoding = "UTF-8"
+        options.charSet = "UTF-8"
+    }
+
+    task cleanAll << {
+        println "Clean project.."
+        delete buildDir
+    }
+
+    task init << {
+        println '+---------------------------------------------------+'
+        println '|                                                   |'
+        println "| B U I L D I N G $project.name $version ...         "
+        println '|                                                   |'
+        println '+---------------------------------------------------+'
+    }
+
+}
+
+project("impl"){
+    apply plugin: 'war'
+    compileJava.dependsOn([init])
+    dependencies{
+        compile(project(":api"))
+        compile 'commons-logging:commons-logging:1.2'
+        compile('org.slf4j:slf4j-api:1.7.21')
+        compile('com.fasterxml.jackson.core:jackson-databind:2.6.6')
+        compile('ch.qos.logback:logback-classic:1.1.7') { transitive = false }
+        compile('ch.qos.logback:logback-core:1.1.7') { transitive = false }
+        //spring
+        compile 'org.springframework:spring-webmvc:4.2.5.RELEASE'
+        compile 'org.springframework:spring-jms:4.2.5.RELEASE'
+        compile 'org.aspectj:aspectjrt:1.8.9'
+        runtime 'org.aspectj:aspectjweaver:1.8.9'
+        compile 'org.springframework:spring-orm:4.2.5.RELEASE'
+        compile 'org.springframework.data:spring-data-redis:1.7.1.RELEASE'
+        compile 'org.springframework.security:spring-security-core:4.1.0.RELEASE'
+        compile ('org.springframework.security:spring-security-web:4.1.0.RELEASE'){ transitive = false }
+        compile 'org.springframework.security:spring-security-config:4.1.0.RELEASE'
+        //redis
+        compile 'redis.clients:jedis:2.8.1'
+
+        compile("javax.jms:javax.jms-api:2.0.1")
+        compile("javax.servlet:javax.servlet-api:3.1.0")
+        compile 'javax.validation:validation-api:1.1.0.Final'
+        compile('org.hibernate:hibernate-validator:5.2.4.Final')
+        compile 'org.thymeleaf:thymeleaf-spring4:2.1.2.RELEASE'
+        compile('org.apache.activemq:activemq-client:5.13.2')
+        //db
+        compile 'org.hibernate:hibernate-core:5.1.0.Final'
+        compile 'mysql:mysql-connector-java:5.1.38'
+        compile 'org.mybatis:mybatis:3.4.0'
+        compile 'org.mybatis:mybatis-spring:1.3.0'
+        compile 'org.apache.commons:commons-dbcp2:2.1.1'
+        compile 'org.springframework:spring-jdbc:4.2.5.RELEASE'
+        compile 'com.alibaba:druid:1.0.18'
+        //dubbo
+        compile 'com.alibaba:dubbo:2.5.3'
+        compile("org.apache.zookeeper:zookeeper:3.4.5")
+        compile("com.101tec:zkclient:0.9")
+
+        //testCompile 'org.springframework.boot:spring-boot-starter-velocity:1.3.3.RELEASE'
+        testCompile 'org.springframework.boot:spring-boot-starter-thymeleaf:1.3.3.RELEASE'
+        testCompile 'org.springframework.boot:spring-boot-starter-web:1.3.3.RELEASE'
+
+        testCompile 'org.mockito:mockito-all:1.10.19'
+        testCompile 'org.springframework:spring-test:4.2.5.RELEASE'
+        testCompile group: 'junit', name: 'junit', version: '4.12'
+    }
+}
+project("api"){
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    dependencies {
+        compile("javax.validation:validation-api:1.1.0.Final")
+    }
+
+    task sourceShareJar(type: Jar) {
+        classifier = 'sources'
+        from(sourceSets.main.allSource){
+            include("**")
+        }
+        archiveName = "$apiName-${apiVersion}-sources.jar"
+    }
+
+    task buildShareJar(dependsOn: [cleanAll,jar],type: Jar){
+        from({
+            sourceSets.main.output.classesDir
+        }){
+            include("**")
+        }
+        archiveName = "$apiName-${apiVersion}.jar"
+    }
+
+    task publishShareSnapshot(dependsOn: [buildShareJar, sourceShareJar, uploadArchives]) << {
+        println "Publish $apiName $version SUCCESS"
+    }
+
+    task publishShare(dependsOn: [buildShareJar,sourceShareJar, uploadArchives]) << {
+        println "Publish $apiName $version SUCCESS"
+    }
+
+    gradle.taskGraph.whenReady { taskGraph ->
+        if (taskGraph.hasTask(":share:publishShareSnapshot") && !version.endsWith('-SNAPSHOT')) {
+            version ="$apiVersion"+ '-SNAPSHOT'
+        }
+        if(taskGraph.hasTask(":share:publishShare")){
+            version ="$apiVersion"
+            ext{
+                Properties props = new Properties()
+                props.load(new FileInputStream("/home/jenkins/conf/im/mvan.properties"))
+                userName = props['username']
+                password = props['passwd']
+            }
+        }
+        if (taskGraph.hasTask(":share:publishShareSnapshot") || taskGraph.hasTask(":share:publishShare")){
+            artifacts {
+                archives buildShareJar
+                archives sourceShareJar
+            }
+        }
+        uploadArchives {
+            repositories {
+                mavenDeployer {
+                    repository(url: 'http://localhost:8081/nexus/content/repositories/releases') {
+                        authentication(userName: userName, password: password)
+                    }
+                    snapshotRepository(url: 'http://localhost:8081/nexus/content/repositories/snapshots') {
+                        authentication(userName: 'admin', password: 'admin123')
+                    }
+                    uniqueVersion = true
+                    pom.groupId = "com.test"
+                    pom.artifactId = "$apiName"
+                }
+            }
+        }
+    }
+}
