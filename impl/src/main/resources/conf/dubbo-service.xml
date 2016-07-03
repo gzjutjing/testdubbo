@@ -11,11 +11,11 @@
     <!-- 提供方应用信息，用于计算依赖关系 -->
     <dubbo:application name="test_provider"  />
 
-    <!-- 使用multicast广播注册中心暴露服务地址
-    <dubbo:registry address="multicast://224.5.6.7:1234" />-->
+    <!-- 使用multicast广播注册中心暴露服务地址-->
+    <dubbo:registry address="multicast://224.5.6.7:1234" />
 
-    <!-- 使用zookeeper注册中心暴露服务地址 -->
-    <dubbo:registry address="zookeeper://192.168.0.117:2181" />
+    <!-- 使用zookeeper注册中心暴露服务地址
+    <dubbo:registry address="zookeeper://192.168.0.117:2181" /> -->
 
     <!-- 用dubbo协议在20880端口暴露服务 -->
     <dubbo:protocol name="dubbo" port="20880" />

@@ -1,5 +1,8 @@
 package com.configuration;
 
+import com.test.TestDubboService;
+import com.test.TestHessian1Service;
+import com.test.TestHessian2Service;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
@@ -12,17 +15,21 @@ import org.springframework.jms.config.JmsListenerContainerFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.support.destination.DestinationResolver;
 import org.springframework.jms.support.destination.DynamicDestinationResolver;
+import org.springframework.remoting.caucho.HessianServiceExporter;
+import org.springframework.remoting.rmi.RmiServiceExporter;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.AsyncRestTemplate;
 import org.springframework.web.servlet.config.annotation.*;
+import org.springframework.web.servlet.handler.BeanNameUrlHandlerMapping;
 import org.thymeleaf.spring4.SpringTemplateEngine;
 import org.thymeleaf.spring4.view.ThymeleafViewResolver;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.templateresolver.ServletContextTemplateResolver;
 
 import javax.jms.ConnectionFactory;
+import java.rmi.RMISecurityManager;
 import java.util.List;
 
 /**
@@ -34,9 +41,42 @@ import java.util.List;
 @EnableScheduling
 @EnableAsync
 @ComponentScan(basePackages = "com.test")
-@ImportResource({"classpath*:conf/dubbo-service.xml"})
+//@ImportResource({"classpath*:conf/dubbo-service.xml"})
 public class WebConfig extends WebMvcConfigurerAdapter {
     private static final String STATIC_RESOURCES_PRE = "classpath:";
+    @Bean
+    public RmiServiceExporter rmiServiceExporter(TestDubboService testDubboService){
+        RmiServiceExporter exporter=new RmiServiceExporter();
+        exporter.setServiceInterface(TestDubboService.class);
+        exporter.setServiceName("testRmi");
+        exporter.setService(testDubboService);
+        exporter.setRegistryPort(9999);
+        return exporter;
+    }
+
+    /**
+     * 暴露bean的name以/开头的时候，映射为url请求
+     * @return
+     */
+    @Bean
+    public BeanNameUrlHandlerMapping beanNameUrlHandlerMapping(){
+        return new BeanNameUrlHandlerMapping();
+    }
+    @Bean(name = "/testHessian1")
+    public HessianServiceExporter testHessian1(TestHessian1Service testHessian1Service){
+        HessianServiceExporter hessianServiceExporter=new HessianServiceExporter();
+        hessianServiceExporter.setService(testHessian1Service);
+        hessianServiceExporter.setServiceInterface(TestHessian1Service.class);
+        return hessianServiceExporter;
+    }
+
+    @Bean(name = "/testHessian2")
+    public HessianServiceExporter testHessian2(TestHessian2Service testHessian2Service){
+        HessianServiceExporter hessianServiceExporter=new HessianServiceExporter();
+        hessianServiceExporter.setService(testHessian2Service);
+        hessianServiceExporter.setServiceInterface(TestHessian2Service.class);
+        return hessianServiceExporter;
+    }
 
     @Override
     public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
