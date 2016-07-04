@@ -130,6 +130,10 @@ project("api"){
     dependencies {
         compile("javax.validation:validation-api:1.1.0.Final")
     }
+    jar{
+        baseName='testGradleJar'
+        version='0.1.0'
+    }
 
     task sourceShareJar(type: Jar) {
         classifier = 'sources'
